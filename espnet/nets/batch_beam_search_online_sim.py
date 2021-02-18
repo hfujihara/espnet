@@ -35,27 +35,23 @@ class BatchBeamSearchOnlineSim(BatchBeamSearch):
         train_config_file = Path(asr_config)
         with train_config_file.open("r", encoding="utf-8") as f:
             args = yaml.safe_load(f)
-            config = args["config"]
-        if config is None:
+        
+        enc_args = args["encoder_conf"] if "encoder_conf" in args else None
+        if enc_args and 'block_size' in enc_args and 'hop_size' in enc_args and 'look_ahead' in enc_args:
+            self.block_size = enc_args["block_size"]
+            self.hop_size = enc_args["hop_size"]
+            self.look_ahead = enc_args["look_ahead"]
+            logging.info(f"block_size: {self.block_size}")
+            logging.info(f"hop_size: {self.hop_size}")
+            logging.info(f"look_ahead: {self.look_ahead}")
+        else:
             logging.info(
-                "Cannot find config file for streaming decoding: "
-                + "apply batch beam search instead."
+                "Cannot find 'block_size', 'hop_size', and 'look_ahead' elements in config. "
+                + "Apply batch beam search instead."
             )
             self.block_size = None
             self.hop_size = None
             self.look_ahead = None
-            return
-        config_file = Path(config)
-        with config_file.open("r", encoding="utf-8") as f:
-            args = yaml.safe_load(f)
-        if "encoder_conf" in args.keys():
-            enc_args = args["encoder_conf"]
-        if enc_args and "block_size" in enc_args:
-            self.block_size = enc_args["block_size"]
-        if enc_args and "hop_size" in enc_args:
-            self.hop_size = enc_args["hop_size"]
-        if enc_args and "look_ahead" in enc_args:
-            self.look_ahead = enc_args["look_ahead"]
 
     def set_block_size(self, block_size: int):
         """Set block size for streaming decoding.
@@ -139,7 +135,7 @@ class BatchBeamSearchOnlineSim(BatchBeamSearch):
 
             while process_idx < maxlen:
                 logging.debug("position " + str(process_idx))
-                best = self.search(running_hyps, x)
+                best = self.search(running_hyps, h)
 
                 if process_idx == maxlen - 1:
                     # end decoding
